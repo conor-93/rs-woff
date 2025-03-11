@@ -1,5 +1,6 @@
-use std::{io};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::{fs, io};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::time::Instant;
 
 #[allow(dead_code)]
 struct Header {
@@ -166,4 +167,55 @@ fn test() {
 
     let expected = include_bytes!("../test_assets/OpenSans.otf");
     assert_eq!(expected, cursor_o.into_inner().as_slice());
+}
+
+#[test]
+fn benchmark() {
+    let test_assets_dir = "test_assets";
+
+    let woff_files = fs::read_dir(test_assets_dir).unwrap()
+        .filter_map(|entry| {
+            let entry = entry.unwrap();
+            if entry.path().extension().map(|ext| ext == "woff").unwrap_or(false) {
+                Some(entry.path())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    for woff_path in woff_files {
+        let input = fs::read(&woff_path).unwrap();
+        let input_size = input.len();
+
+        let mut cursor_i = Cursor::new(&input);
+        let mut cursor_o = Cursor::new(Vec::new());
+
+        let start = Instant::now();
+
+        woff2otf(&mut cursor_i, &mut cursor_o).unwrap();
+
+        let duration = start.elapsed();
+
+        let output = cursor_o.into_inner();
+        let output_size = output.len();
+
+        let file_stem = woff_path.file_stem().unwrap().to_str().unwrap();
+
+        let output_path = format!("{}/{}.otf", test_assets_dir, file_stem);
+
+        fs::write(&output_path, &output).unwrap();
+
+        println!(
+            "File {:?} converted in {:.2?}, size before: {}, size after: {}, saved to {}",
+            woff_path.file_name().unwrap(),
+            duration,
+            format_bytes_as_kb(input_size),
+            format_bytes_as_kb(output_size),
+            output_path
+        );
+    }
+}
+fn format_bytes_as_kb(bytes: usize) -> String {
+    format!("{:.2} KB", bytes as f64 / 1024.0)
 }
