@@ -26,4 +26,4 @@ categories = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-flate2 = "1.0.25"
+flate2 = "1.0.34"
